@@ -4,14 +4,13 @@ Request P2P certificate which valid for 1 hour to authenticate to any Azure AD j
 ## Requirements
 * Python 2.7, 3.5+
 * PyOpenSSL
-* python_jwt
 * requests
 
 ## Usage
 
 ```
 RequestCert.py [-h] --tenantId TENANTID --prt PRT --userName USERNAME --hexCtx HEXCTX --hexDerivedKey
-                      HEXDERIVEDKEY
+                      HEXDERIVEDKEY [--passPhrase PASSPHRASE]
 ```
 
 ## Steps
