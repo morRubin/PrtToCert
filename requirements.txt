@@ -1,3 +1,2 @@
 PyOpenSSL
-python_jwt
 requests
